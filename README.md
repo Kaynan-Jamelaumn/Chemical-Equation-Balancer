@@ -9,6 +9,7 @@
 - **Balances Chemical Equations**: Automatically balances chemical equations, including those with polyatomic ions and charges.
 - **Handles Charges**: Supports balancing of ionic equations by accounting for the charge of each species.
 - **Error Handling**: Detects and reports errors in balancing, such as invalid input or unsolvable equations.
+- **Balances NOX**: Automatically balances nox.
 
 ---
 
@@ -34,7 +35,8 @@ balancer = EquationBalancer()
 
 Use the get_balanced_equation method to balance a chemical equation. The method takes a string representing the unbalanced equation and returns the balanced equation as a string.
 ```bash
-equation = "Fe^3+ + SO4^2- -> Fe2(SO4)3"
+equation = "Fe^3+ + SO4^2- -> Fe2(SO4)3" 
+#equation = "Fe^2+ + Cr2O7^2- + H^+ -> Fe^3+ + Cr^3+ + H2O" #equation to test that balances nox
 balanced_equation = balancer.get_balanced_equation(equation)
 print("Balanced Equation:")
 print(balanced_equation)

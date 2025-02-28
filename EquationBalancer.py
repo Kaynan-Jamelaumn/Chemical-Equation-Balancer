@@ -1,12 +1,138 @@
 from collections import defaultdict
 import re
 from sympy import Matrix
+from sympy import Rational
 
 class EquationBalancer:
     """
     A class to balance chemical equations by parsing compounds, building a matrix of element counts,
     solving for stoichiometric coefficients, and constructing the balanced equation.
     """
+    def __init__(self, elements_list=None):
+        elements = [
+            {"symbol": "H",  "name": "Hydrogen",    "nox": [+1, -1], "electrons_to_neutral": 1},
+            {"symbol": "He", "name": "Helium",      "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Li", "name": "Lithium",     "nox": [+1],     "electrons_to_neutral": 1},
+            {"symbol": "Be", "name": "Beryllium",   "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "B",  "name": "Boron",       "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "C",  "name": "Carbon",      "nox": [+4, -4], "electrons_to_neutral": 4},
+            {"symbol": "N",  "name": "Nitrogen",    "nox": [+5, -3], "electrons_to_neutral": 3},
+            {"symbol": "O",  "name": "Oxygen",      "nox": [-2],     "electrons_to_neutral": 2},
+            {"symbol": "F",  "name": "Fluorine",    "nox": [-1],     "electrons_to_neutral": 1},
+            {"symbol": "Ne", "name": "Neon",        "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Na", "name": "Sodium",      "nox": [+1],     "electrons_to_neutral": 1},
+            {"symbol": "Mg", "name": "Magnesium",   "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "Al", "name": "Aluminum",    "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Si", "name": "Silicon",     "nox": [+4, -4], "electrons_to_neutral": 4},
+            {"symbol": "P",  "name": "Phosphorus",  "nox": [+5, -3], "electrons_to_neutral": 3},
+            {"symbol": "S",  "name": "Sulfur",      "nox": [+6, -2], "electrons_to_neutral": 2},
+            {"symbol": "Cl", "name": "Chlorine",    "nox": [+7, -1], "electrons_to_neutral": 1},
+            {"symbol": "Ar", "name": "Argon",       "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "K",  "name": "Potassium",   "nox": [+1],     "electrons_to_neutral": 1},
+            {"symbol": "Ca", "name": "Calcium",     "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "Sc", "name": "Scandium",    "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Ti", "name": "Titanium",    "nox": [+4, +3], "electrons_to_neutral": 4},
+            {"symbol": "V",  "name": "Vanadium",    "nox": [+5, +4], "electrons_to_neutral": 5},
+            {"symbol": "Cr", "name": "Chromium",    "nox": [+6, +3], "electrons_to_neutral": 6},
+            {"symbol": "Mn", "name": "Manganese",   "nox": [+7, +2], "electrons_to_neutral": 7},
+            {"symbol": "Fe", "name": "Iron",        "nox": [+3, +2], "electrons_to_neutral": 3},
+            {"symbol": "Co", "name": "Cobalt",      "nox": [+3, +2], "electrons_to_neutral": 3},
+            {"symbol": "Ni", "name": "Nickel",      "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "Cu", "name": "Copper",      "nox": [+2, +1], "electrons_to_neutral": 2},
+            {"symbol": "Zn", "name": "Zinc",        "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "Ga", "name": "Gallium",     "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Ge", "name": "Germanium",   "nox": [+4, -4], "electrons_to_neutral": 4},
+            {"symbol": "As", "name": "Arsenic",     "nox": [+5, -3], "electrons_to_neutral": 3},
+            {"symbol": "Se", "name": "Selenium",    "nox": [+6, -2], "electrons_to_neutral": 2},
+            {"symbol": "Br", "name": "Bromine",     "nox": [+7, -1], "electrons_to_neutral": 1},
+            {"symbol": "Kr", "name": "Krypton",     "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Rb", "name": "Rubidium",    "nox": [+1],     "electrons_to_neutral": 1},
+            {"symbol": "Sr", "name": "Strontium",   "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "Y",  "name": "Yttrium",     "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Zr", "name": "Zirconium",   "nox": [+4],     "electrons_to_neutral": 4},
+            {"symbol": "Nb", "name": "Niobium",     "nox": [+5],     "electrons_to_neutral": 5},
+            {"symbol": "Mo", "name": "Molybdenum",  "nox": [+6],     "electrons_to_neutral": 6},
+            {"symbol": "Tc", "name": "Technetium",  "nox": [+7],     "electrons_to_neutral": 7},
+            {"symbol": "Ru", "name": "Ruthenium",   "nox": [+8, +3], "electrons_to_neutral": 8},
+            {"symbol": "Rh", "name": "Rhodium",     "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Pd", "name": "Palladium",   "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "Ag", "name": "Silver",      "nox": [+1],     "electrons_to_neutral": 1},
+            {"symbol": "Cd", "name": "Cadmium",     "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "In", "name": "Indium",      "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Sn", "name": "Tin",         "nox": [+4, +2], "electrons_to_neutral": 4},
+            {"symbol": "Sb", "name": "Antimony",    "nox": [+5, -3], "electrons_to_neutral": 3},
+            {"symbol": "Te", "name": "Tellurium",   "nox": [+6, -2], "electrons_to_neutral": 2},
+            {"symbol": "I",  "name": "Iodine",      "nox": [+7, -1], "electrons_to_neutral": 1},
+            {"symbol": "Xe", "name": "Xenon",       "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Cs", "name": "Cesium",      "nox": [+1],     "electrons_to_neutral": 1},
+            {"symbol": "Ba", "name": "Barium",      "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "La", "name": "Lanthanum",   "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Ce", "name": "Cerium",      "nox": [+4, +3], "electrons_to_neutral": 4},
+            {"symbol": "Pr", "name": "Praseodymium","nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Nd", "name": "Neodymium",   "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Pm", "name": "Promethium",  "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Sm", "name": "Samarium",    "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Eu", "name": "Europium",    "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Gd", "name": "Gadolinium",  "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Tb", "name": "Terbium",     "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Dy", "name": "Dysprosium",  "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Ho", "name": "Holmium",     "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Er", "name": "Erbium",      "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Tm", "name": "Thulium",     "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Yb", "name": "Ytterbium",   "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Lu", "name": "Lutetium",    "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Hf", "name": "Hafnium",     "nox": [+4],     "electrons_to_neutral": 4},
+            {"symbol": "Ta", "name": "Tantalum",    "nox": [+5],     "electrons_to_neutral": 5},
+            {"symbol": "W",  "name": "Tungsten",    "nox": [+6],     "electrons_to_neutral": 6},
+            {"symbol": "Re", "name": "Rhenium",     "nox": [+7],     "electrons_to_neutral": 7},
+            {"symbol": "Os", "name": "Osmium",      "nox": [+8],     "electrons_to_neutral": 8},
+            {"symbol": "Ir", "name": "Iridium",     "nox": [+4],     "electrons_to_neutral": 4},
+            {"symbol": "Pt", "name": "Platinum",    "nox": [+4, +2], "electrons_to_neutral": 4},
+            {"symbol": "Au", "name": "Gold",        "nox": [+3, +1], "electrons_to_neutral": 3},
+            {"symbol": "Hg", "name": "Mercury",     "nox": [+2, +1], "electrons_to_neutral": 2},
+            {"symbol": "Tl", "name": "Thallium",    "nox": [+3, +1], "electrons_to_neutral": 3},
+            {"symbol": "Pb", "name": "Lead",        "nox": [+4, +2], "electrons_to_neutral": 4},
+            {"symbol": "Bi", "name": "Bismuth",     "nox": [+5, +3], "electrons_to_neutral": 5},
+            {"symbol": "Po", "name": "Polonium",    "nox": [+4, +2], "electrons_to_neutral": 4},
+            {"symbol": "At", "name": "Astatine",    "nox": [-1],     "electrons_to_neutral": 1},
+            {"symbol": "Rn", "name": "Radon",       "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Fr", "name": "Francium",    "nox": [+1],     "electrons_to_neutral": 1},
+            {"symbol": "Ra", "name": "Radium",      "nox": [+2],     "electrons_to_neutral": 2},
+            {"symbol": "Ac", "name": "Actinium",    "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Th", "name": "Thorium",     "nox": [+4],     "electrons_to_neutral": 4},
+            {"symbol": "Pa", "name": "Protactinium","nox": [+5],     "electrons_to_neutral": 5},
+            {"symbol": "U",  "name": "Uranium",     "nox": [+6],     "electrons_to_neutral": 6},
+            {"symbol": "Np", "name": "Neptunium",   "nox": [+7],     "electrons_to_neutral": 7},
+            {"symbol": "Pu", "name": "Plutonium",   "nox": [+7],     "electrons_to_neutral": 7},
+            {"symbol": "Am", "name": "Americium",   "nox": [+7],     "electrons_to_neutral": 7},
+            {"symbol": "Cm", "name": "Curium",      "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Bk", "name": "Berkelium",   "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Cf", "name": "Californium", "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Es", "name": "Einsteinium", "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Fm", "name": "Fermium",     "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Md", "name": "Mendelevium", "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "No", "name": "Nobelium",    "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Lr", "name": "Lawrencium",  "nox": [+3],     "electrons_to_neutral": 3},
+            {"symbol": "Rf", "name": "Rutherfordium","nox": [+4],    "electrons_to_neutral": 4},
+            {"symbol": "Db", "name": "Dubnium",     "nox": [+5],     "electrons_to_neutral": 5},
+            {"symbol": "Sg", "name": "Seaborgium",  "nox": [+6],     "electrons_to_neutral": 6},
+            {"symbol": "Bh", "name": "Bohrium",     "nox": [+7],     "electrons_to_neutral": 7},
+            {"symbol": "Hs", "name": "Hassium",     "nox": [+8],     "electrons_to_neutral": 8},
+            {"symbol": "Mt", "name": "Meitnerium",  "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Ds", "name": "Darmstadtium","nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Rg", "name": "Roentgenium", "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Cn", "name": "Copernicium", "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Nh", "name": "Nihonium",   "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Fl", "name": "Flerovium",   "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Mc", "name": "Moscovium",   "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Lv", "name": "Livermorium", "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Ts", "name": "Tennessine",  "nox": [0],      "electrons_to_neutral": 0},
+            {"symbol": "Og", "name": "Oganesson",   "nox": [0],      "electrons_to_neutral": 0},
+        ]
+
+        self.elements_list = elements
+        self.element_nox_map = {elem['symbol']: elem['nox'] for elem in self.elements_list}
+
 
     def gcd(self, a, b):
         """
@@ -22,6 +148,72 @@ class EquationBalancer:
         while b:
             a, b = b, a % b
         return a
+
+    def compute_oxidation_states(self, elements_dict, charge):
+        """
+        Compute the oxidation states of elements in a compound based on its composition and charge.
+
+        Args:
+            elements_dict (dict): A dictionary where keys are element symbols and values are their counts in the compound.
+            charge (int): The total charge of the compound.
+
+        Returns:
+            dict: A dictionary where keys are element symbols and values are their computed oxidation states.
+
+        Raises:
+            ValueError: If the oxidation states cannot be determined due to insufficient information.
+        """
+        # Initialize a dictionary to store the oxidation states of each element in the compound.
+        oxidation_states = {}
+
+        # Iterate over each element and its count in the compound.
+        for element, count in elements_dict.items():
+            # Get the possible oxidation states for the current element from the element_nox_map.
+            # If the element is not in the map, default to [0] (neutral state).
+            possible_nox = self.element_nox_map.get(element, [0])
+
+            # Assign oxidation states based on common rules:
+            # - Oxygen typically has an oxidation state of -2.
+            # - Hydrogen typically has an oxidation state of +1.
+            # - For other elements, use the first possible oxidation state from the map.
+            if element == "O":
+                oxidation_states[element] = -2  # Oxygen usually has an oxidation state of -2
+            elif element == "H":
+                oxidation_states[element] = +1  # Hydrogen usually has an oxidation state of +1
+            else:
+                oxidation_states[element] = possible_nox[0]  # Use the first possible oxidation state
+
+        # Calculate the total oxidation state of the compound by summing the oxidation states
+        # of all elements, weighted by their counts in the compound.
+        total_oxidation = sum(oxidation_states[el] * count for el, count in elements_dict.items())
+
+        # Check if the total oxidation state matches the given charge of the compound.
+        # If not, adjust the oxidation states to balance the charge.
+        if total_oxidation != charge:
+            # Find an element with variable oxidation states (i.e., an element that can have multiple oxidation states).
+            variable_element = None
+            for element in elements_dict:
+                if len(self.element_nox_map.get(element, [0])) > 1:
+                    variable_element = element
+                    break
+
+            # If a variable element is found, adjust its oxidation state to balance the charge.
+            if variable_element:
+                # Calculate the difference between the desired charge and the current total oxidation state.
+                delta = charge - total_oxidation
+
+                # Adjust the oxidation state of the variable element by distributing the delta
+                # across its count in the compound. Use Rational to avoid floating-point inaccuracies.
+                oxidation_states[variable_element] += Rational(delta, elements_dict[variable_element])
+            else:
+                # If no variable element is found, raise an error because the oxidation states
+                # cannot be adjusted to balance the charge.
+                raise ValueError(
+                    f"Could not determine oxidation states for compound with elements {elements_dict} and charge {charge}"
+                )
+
+        # Return the computed oxidation states.
+        return oxidation_states
 
     def parse_compound(self, compound):
         """
@@ -164,8 +356,10 @@ class EquationBalancer:
                 # - charge: The net charge of the compound.
                 elements_dict, charge = self.parse_compound(formula)
 
+                oxidation_states = self.compute_oxidation_states(elements_dict, charge)
+
                 # Append the parsed data for this compound to the `parsed_data` list.
-                parsed_data.append({'elements': elements_dict, 'charge': charge})
+                parsed_data.append({'elements': elements_dict, 'charge': charge, 'oxidation_states': oxidation_states})
 
             # Return the parsed data and the original list of formulas.
             # - `parsed_data`: A list of dictionaries containing element counts and charges for each compound.
@@ -197,6 +391,7 @@ class EquationBalancer:
         Args:
             reactants_data (list): Parsed data for reactants.
             products_data (list): Parsed data for products.
+            oxidation_states: A dictionary of oxidation states for each element in the compound.
 
         Returns:
             list: A matrix where each row represents an element (or charge), and each column represents a compound.
@@ -267,7 +462,54 @@ class EquationBalancer:
         # (Sum of charges of reactants) - (Sum of charges of products) = 0
         matrix.append(charge_row)
 
+        # Add an electron transfer row to the matrix.
+        # This row ensures that the total number of electrons lost in oxidation equals the total number of electrons gained in reduction.
+        electron_row = []
+        # Iterate over all compounds (both reactants and products).
+        for comp in reactants_data + products_data:
+            # Initialize a variable to store the contribution of the current compound to electron transfer.
+            contrib = 0
+
+            # Iterate over each element in the current compound.
+            for el, count in comp['elements'].items():
+                # If the compound is a reactant, calculate the change in oxidation state (delta) for the element.
+                if comp in reactants_data:
+                    # Get the oxidation state of the element in the reactant.
+                    reactant_nox = comp['oxidation_states'][el]
+                    # Find the oxidation state of the same element in the products.
+                    # If the element is not present in any product, use the reactant's oxidation state as a default.
+                    product_noxs = [p['oxidation_states'].get(el, reactant_nox) for p in products_data if el in p['elements']]
+                    product_nox = product_noxs[0] if product_noxs else reactant_nox
+                    # Calculate the change in oxidation state (delta).
+                    delta = product_nox - reactant_nox
+                # If the compound is a product, calculate the change in oxidation state (delta) for the element.
+                else:
+                    # Get the oxidation state of the element in the product.
+                    product_nox = comp['oxidation_states'][el]
+                    # Find the oxidation state of the same element in the reactants.
+                    # If the element is not present in any reactant, use the product's oxidation state as a default.
+                    reactant_noxs = [r['oxidation_states'].get(el, product_nox) for r in reactants_data if el in r['elements']]
+                    reactant_nox = reactant_noxs[0] if reactant_noxs else product_nox
+                    # Calculate the change in oxidation state (delta).
+                    delta = product_nox - reactant_nox
+
+                # Multiply the delta by the count of the element in the compound to get the total contribution.
+                contrib += delta * count
+
+            # If the compound is a reactant, append its contribution to the electron row.
+            if comp in reactants_data:
+                electron_row.append(contrib)
+            # If the compound is a product, append the negative of its contribution to the electron row.
+            else:
+                electron_row.append(-contrib)
+
+        # Append the electron row to the matrix.
+        # This row represents the electron transfer balance equation:
+        # (Sum of electrons lost by reactants) - (Sum of electrons gained by products) = 0
+        matrix.append(electron_row)
+
         return matrix
+
 
     def balance_equation(self, reactants_data, products_data):
         """
@@ -437,125 +679,3 @@ class EquationBalancer:
         return balanced
 
 
-
-
-elements = [
-    {"symbol": "H",  "name": "Hydrogen",    "nox": [+1, -1], "electrons_to_neutral": 1},
-    {"symbol": "He", "name": "Helium",      "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Li", "name": "Lithium",     "nox": [+1],     "electrons_to_neutral": 1},
-    {"symbol": "Be", "name": "Beryllium",   "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "B",  "name": "Boron",       "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "C",  "name": "Carbon",      "nox": [+4, -4], "electrons_to_neutral": 4},
-    {"symbol": "N",  "name": "Nitrogen",    "nox": [+5, -3], "electrons_to_neutral": 3},
-    {"symbol": "O",  "name": "Oxygen",      "nox": [-2],     "electrons_to_neutral": 2},
-    {"symbol": "F",  "name": "Fluorine",    "nox": [-1],     "electrons_to_neutral": 1},
-    {"symbol": "Ne", "name": "Neon",        "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Na", "name": "Sodium",      "nox": [+1],     "electrons_to_neutral": 1},
-    {"symbol": "Mg", "name": "Magnesium",   "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "Al", "name": "Aluminum",    "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Si", "name": "Silicon",     "nox": [+4, -4], "electrons_to_neutral": 4},
-    {"symbol": "P",  "name": "Phosphorus",  "nox": [+5, -3], "electrons_to_neutral": 3},
-    {"symbol": "S",  "name": "Sulfur",      "nox": [+6, -2], "electrons_to_neutral": 2},
-    {"symbol": "Cl", "name": "Chlorine",    "nox": [+7, -1], "electrons_to_neutral": 1},
-    {"symbol": "Ar", "name": "Argon",       "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "K",  "name": "Potassium",   "nox": [+1],     "electrons_to_neutral": 1},
-    {"symbol": "Ca", "name": "Calcium",     "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "Sc", "name": "Scandium",    "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Ti", "name": "Titanium",    "nox": [+4, +3], "electrons_to_neutral": 4},
-    {"symbol": "V",  "name": "Vanadium",    "nox": [+5, +4], "electrons_to_neutral": 5},
-    {"symbol": "Cr", "name": "Chromium",    "nox": [+6, +3], "electrons_to_neutral": 6},
-    {"symbol": "Mn", "name": "Manganese",   "nox": [+7, +2], "electrons_to_neutral": 7},
-    {"symbol": "Fe", "name": "Iron",        "nox": [+3, +2], "electrons_to_neutral": 3},
-    {"symbol": "Co", "name": "Cobalt",      "nox": [+3, +2], "electrons_to_neutral": 3},
-    {"symbol": "Ni", "name": "Nickel",      "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "Cu", "name": "Copper",      "nox": [+2, +1], "electrons_to_neutral": 2},
-    {"symbol": "Zn", "name": "Zinc",        "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "Ga", "name": "Gallium",     "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Ge", "name": "Germanium",   "nox": [+4, -4], "electrons_to_neutral": 4},
-    {"symbol": "As", "name": "Arsenic",     "nox": [+5, -3], "electrons_to_neutral": 3},
-    {"symbol": "Se", "name": "Selenium",    "nox": [+6, -2], "electrons_to_neutral": 2},
-    {"symbol": "Br", "name": "Bromine",     "nox": [+7, -1], "electrons_to_neutral": 1},
-    {"symbol": "Kr", "name": "Krypton",     "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Rb", "name": "Rubidium",    "nox": [+1],     "electrons_to_neutral": 1},
-    {"symbol": "Sr", "name": "Strontium",   "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "Y",  "name": "Yttrium",     "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Zr", "name": "Zirconium",   "nox": [+4],     "electrons_to_neutral": 4},
-    {"symbol": "Nb", "name": "Niobium",     "nox": [+5],     "electrons_to_neutral": 5},
-    {"symbol": "Mo", "name": "Molybdenum",  "nox": [+6],     "electrons_to_neutral": 6},
-    {"symbol": "Tc", "name": "Technetium",  "nox": [+7],     "electrons_to_neutral": 7},
-    {"symbol": "Ru", "name": "Ruthenium",   "nox": [+8, +3], "electrons_to_neutral": 8},
-    {"symbol": "Rh", "name": "Rhodium",     "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Pd", "name": "Palladium",   "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "Ag", "name": "Silver",      "nox": [+1],     "electrons_to_neutral": 1},
-    {"symbol": "Cd", "name": "Cadmium",     "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "In", "name": "Indium",      "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Sn", "name": "Tin",         "nox": [+4, +2], "electrons_to_neutral": 4},
-    {"symbol": "Sb", "name": "Antimony",    "nox": [+5, -3], "electrons_to_neutral": 3},
-    {"symbol": "Te", "name": "Tellurium",   "nox": [+6, -2], "electrons_to_neutral": 2},
-    {"symbol": "I",  "name": "Iodine",      "nox": [+7, -1], "electrons_to_neutral": 1},
-    {"symbol": "Xe", "name": "Xenon",       "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Cs", "name": "Cesium",      "nox": [+1],     "electrons_to_neutral": 1},
-    {"symbol": "Ba", "name": "Barium",      "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "La", "name": "Lanthanum",   "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Ce", "name": "Cerium",      "nox": [+4, +3], "electrons_to_neutral": 4},
-    {"symbol": "Pr", "name": "Praseodymium","nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Nd", "name": "Neodymium",   "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Pm", "name": "Promethium",  "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Sm", "name": "Samarium",    "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Eu", "name": "Europium",    "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Gd", "name": "Gadolinium",  "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Tb", "name": "Terbium",     "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Dy", "name": "Dysprosium",  "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Ho", "name": "Holmium",     "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Er", "name": "Erbium",      "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Tm", "name": "Thulium",     "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Yb", "name": "Ytterbium",   "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Lu", "name": "Lutetium",    "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Hf", "name": "Hafnium",     "nox": [+4],     "electrons_to_neutral": 4},
-    {"symbol": "Ta", "name": "Tantalum",    "nox": [+5],     "electrons_to_neutral": 5},
-    {"symbol": "W",  "name": "Tungsten",    "nox": [+6],     "electrons_to_neutral": 6},
-    {"symbol": "Re", "name": "Rhenium",     "nox": [+7],     "electrons_to_neutral": 7},
-    {"symbol": "Os", "name": "Osmium",      "nox": [+8],     "electrons_to_neutral": 8},
-    {"symbol": "Ir", "name": "Iridium",     "nox": [+4],     "electrons_to_neutral": 4},
-    {"symbol": "Pt", "name": "Platinum",    "nox": [+4, +2], "electrons_to_neutral": 4},
-    {"symbol": "Au", "name": "Gold",        "nox": [+3, +1], "electrons_to_neutral": 3},
-    {"symbol": "Hg", "name": "Mercury",     "nox": [+2, +1], "electrons_to_neutral": 2},
-    {"symbol": "Tl", "name": "Thallium",    "nox": [+3, +1], "electrons_to_neutral": 3},
-    {"symbol": "Pb", "name": "Lead",        "nox": [+4, +2], "electrons_to_neutral": 4},
-    {"symbol": "Bi", "name": "Bismuth",     "nox": [+5, +3], "electrons_to_neutral": 5},
-    {"symbol": "Po", "name": "Polonium",    "nox": [+4, +2], "electrons_to_neutral": 4},
-    {"symbol": "At", "name": "Astatine",    "nox": [-1],     "electrons_to_neutral": 1},
-    {"symbol": "Rn", "name": "Radon",       "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Fr", "name": "Francium",    "nox": [+1],     "electrons_to_neutral": 1},
-    {"symbol": "Ra", "name": "Radium",      "nox": [+2],     "electrons_to_neutral": 2},
-    {"symbol": "Ac", "name": "Actinium",    "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Th", "name": "Thorium",     "nox": [+4],     "electrons_to_neutral": 4},
-    {"symbol": "Pa", "name": "Protactinium","nox": [+5],     "electrons_to_neutral": 5},
-    {"symbol": "U",  "name": "Uranium",     "nox": [+6],     "electrons_to_neutral": 6},
-    {"symbol": "Np", "name": "Neptunium",   "nox": [+7],     "electrons_to_neutral": 7},
-    {"symbol": "Pu", "name": "Plutonium",   "nox": [+7],     "electrons_to_neutral": 7},
-    {"symbol": "Am", "name": "Americium",   "nox": [+7],     "electrons_to_neutral": 7},
-    {"symbol": "Cm", "name": "Curium",      "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Bk", "name": "Berkelium",   "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Cf", "name": "Californium", "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Es", "name": "Einsteinium", "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Fm", "name": "Fermium",     "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Md", "name": "Mendelevium", "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "No", "name": "Nobelium",    "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Lr", "name": "Lawrencium",  "nox": [+3],     "electrons_to_neutral": 3},
-    {"symbol": "Rf", "name": "Rutherfordium","nox": [+4],    "electrons_to_neutral": 4},
-    {"symbol": "Db", "name": "Dubnium",     "nox": [+5],     "electrons_to_neutral": 5},
-    {"symbol": "Sg", "name": "Seaborgium",  "nox": [+6],     "electrons_to_neutral": 6},
-    {"symbol": "Bh", "name": "Bohrium",     "nox": [+7],     "electrons_to_neutral": 7},
-    {"symbol": "Hs", "name": "Hassium",     "nox": [+8],     "electrons_to_neutral": 8},
-    {"symbol": "Mt", "name": "Meitnerium",  "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Ds", "name": "Darmstadtium","nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Rg", "name": "Roentgenium", "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Cn", "name": "Copernicium", "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Nh", "name": "Nihonium",   "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Fl", "name": "Flerovium",   "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Mc", "name": "Moscovium",   "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Lv", "name": "Livermorium", "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Ts", "name": "Tennessine",  "nox": [0],      "electrons_to_neutral": 0},
-    {"symbol": "Og", "name": "Oganesson",   "nox": [0],      "electrons_to_neutral": 0},
-]
