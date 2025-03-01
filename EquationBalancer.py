@@ -132,6 +132,45 @@ class EquationBalancer:
 
         self.elements_list = elements
         self.element_nox_map = {elem['symbol']: elem['nox'] for elem in self.elements_list}
+        self.polyatomic_ions = {
+            "NH4": {"N": -3, "H": +1},
+            "C2H3O2": {"C": +3, "H": +1, "O": -2},  # Acetate
+            "CN": {"C": +2, "N": -3},               # Cyanide
+            "OH": {"O": -2, "H": +1},               # Hydroxide
+            "NO2": {"N": +3, "O": -2},              # Nitrite
+            "NO3": {"N": +5, "O": -2},              # Nitrate
+            "MnO4": {"Mn": +7, "O": -2},            # Permanganate
+            "SCN": {"S": -2, "C": +4, "N": -3},     # Thiocyanate
+            "ClO": {"Cl": +1, "O": -2},             # Hypochlorite
+            "ClO2": {"Cl": +3, "O": -2},            # Chlorite
+            "ClO3": {"Cl": +5, "O": -2},            # Chlorate
+            "ClO4": {"Cl": +7, "O": -2},            # Perchlorate
+            "HCO3": {"H": +1, "C": +4, "O": -2},    # Hydrogen Carbonate
+            "H2PO4": {"H": +1, "P": +5, "O": -2},   # Dihydrogen Phosphate
+            "HSO3": {"H": +1, "S": +4, "O": -2},    # Hydrogen Sulfite
+            "HSO4": {"H": +1, "S": +6, "O": -2},    # Hydrogen Sulfate
+            "CO3": {"C": +4, "O": -2},              # Carbonate
+            "SO3": {"S": +4, "O": -2},              # Sulfite
+            "SO4": {"S": +6, "O": -2},              # Sulfate
+            "CrO4": {"Cr": +6, "O": -2},            # Chromate
+            "Cr2O7": {"Cr": +6, "O": -2},           # Dichromate
+            "C2O4": {"C": +3, "O": -2},             # Oxalate
+            "O2": {"O": -1},                        # Peroxide
+            "S2O3": {"S": +2, "O": -2},             # Thiosulfate
+            "PO4": {"P": +5, "O": -2},              # Phosphate
+            "PO3": {"P": +3, "O": -2},              # Phosphite
+            "AsO4": {"As": +5, "O": -2},            # Arsenate
+            "BO3": {"B": +3, "O": -2},              # Borate
+            "SiO3": {"Si": +4, "O": -2},            # Silicate
+            "AlO2": {"Al": +3, "O": -2},            # Aluminate
+            "Fe(CN)6": {"Fe": +3, "C": +2, "N": -3},# Ferricyanide
+            "Fe(CN)6": {"Fe": +2, "C": +2, "N": -3},# Ferrocyanide
+            "MnO4": {"Mn": +6, "O": -2},            # Manganate
+            "TcO4": {"Tc": +7, "O": -2},            # Pertechnetate
+            "ReO4": {"Re": +7, "O": -2},            # Perrhenate
+            "P2O7": {"P": +5, "O": -2},             # Pyrophosphate
+            "S4O6": {"S": +2.5, "O": -2},           # Tetrathionate
+        }
 
 
     def gcd(self, a, b):
@@ -148,8 +187,7 @@ class EquationBalancer:
         while b:
             a, b = b, a % b
         return a
-
-    def compute_oxidation_statdes(self, elements_dict, charge):
+    def compute_oxidation_states(self, elements_dict, charge):
         """
         Compute the oxidation states of elements in a compound based on its composition and charge.
 
@@ -162,57 +200,82 @@ class EquationBalancer:
 
         Raises:
             ValueError: If the oxidation states cannot be determined due to insufficient information.
+
+        Description:
+            This function calculates the oxidation states of elements in a compound using the following rules:
+            1. Polyatomic ions are handled first, using predefined oxidation states for their constituent elements.
+            2. Oxygen is assigned an oxidation state of -2 (except in special cases like peroxides).
+            3. Hydrogen is assigned an oxidation state of +1 (except in metal hydrides).
+            4. For other elements, the first possible oxidation state from the element's oxidation state map is used.
+            5. If the total oxidation does not match the compound's charge, the function adjusts the oxidation state
+            of an element with variable oxidation states to balance the charge.
+
+        Example:
+            >>> balancer = EquationBalancer()
+            >>> elements_dict = {"S": 1, "O": 4}
+            >>> charge = -2
+            >>> oxidation_states = balancer.compute_oxidation_states(elements_dict, charge)
+            >>> print(oxidation_states)
+            {'S': 6, 'O': -2}
         """
         # Initialize a dictionary to store the oxidation states of each element in the compound.
         oxidation_states = {}
+        total_oxidation = 0  # Tracks the sum of (oxidation state * count) for all elements.
 
-        # Iterate over each element and its count in the compound.
+        # Handle polyatomic ions.
+        # Polyatomic ions have fixed oxidation states for their constituent elements.
+        for ion, ion_nox in self.polyatomic_ions.items():
+            if ion in elements_dict:
+                # Assign the predefined oxidation states for elements in the polyatomic ion.
+                for element, nox in ion_nox.items():
+                    oxidation_states[element] = nox
+                    # Update the total oxidation by adding (oxidation state * count).
+                    total_oxidation += nox * elements_dict[element]
+
+        # Assign oxidation states for oxygen and hydrogen.
+        # Oxygen typically has an oxidation state of -2 (except in peroxides, superoxides, etc.).
+        if "O" in elements_dict and "O" not in oxidation_states:
+            oxidation_states["O"] = -2
+            total_oxidation += -2 * elements_dict["O"]
+
+        # Hydrogen typically has an oxidation state of +1 (except in metal hydrides).
+        if "H" in elements_dict and "H" not in oxidation_states:
+            oxidation_states["H"] = +1
+            total_oxidation += +1 * elements_dict["H"]
+
+        # Assign oxidation states for other elements.
+        # For elements not in polyatomic ions and not oxygen or hydrogen,
+        # use the first possible oxidation state from the element's oxidation state map.
         for element, count in elements_dict.items():
-            # Get the possible oxidation states for the current element from the element_nox_map.
-            # If the element is not in the map, default to [0] (neutral state).
-            possible_nox = self.element_nox_map.get(element, [0])
+            if element not in oxidation_states:
+                # Get the possible oxidation states for the element (default to [0] if not found).
+                possible_nox = self.element_nox_map.get(element, [0])
+                # Assign the first possible oxidation state.
+                oxidation_states[element] = possible_nox[0]
+                # Update the total oxidation by adding (oxidation state * count).
+                total_oxidation += possible_nox[0] * count
 
-            # Assign oxidation states based on common rules:
-            # - Oxygen typically has an oxidation state of -2.
-            # - Hydrogen typically has an oxidation state of +1.
-            # - For other elements, use the first possible oxidation state from the map.
-            if element == "O":
-                oxidation_states[element] = -2  # Oxygen usually has an oxidation state of -2
-            elif element == "H":
-                oxidation_states[element] = +1  # Hydrogen usually has an oxidation state of +1
-            else:
-                oxidation_states[element] = possible_nox[0]  # Use the first possible oxidation state
-
-        # Calculate the total oxidation state of the compound by summing the oxidation states
-        # of all elements, weighted by their counts in the compound.
-        total_oxidation = sum(oxidation_states[el] * count for el, count in elements_dict.items())
-
-        # Check if the total oxidation state matches the given charge of the compound.
-        # If not, adjust the oxidation states to balance the charge.
+        # Adjust for variable oxidation states if the total oxidation does not match the charge.
         if total_oxidation != charge:
-            # Find an element with variable oxidation states (i.e., an element that can have multiple oxidation states).
+            # Find an element with variable oxidation states (i.e., more than one possible oxidation state).
             variable_element = None
             for element in elements_dict:
-                if len(self.element_nox_map.get(element, [0])) > 1:
+                if len(self.element_nox_map.get(element, [0])) > 1 and element not in self.polyatomic_ions:
                     variable_element = element
                     break
 
-            # If a variable element is found, adjust its oxidation state to balance the charge.
             if variable_element:
-                # Calculate the difference between the desired charge and the current total oxidation state.
+                # Calculate the difference between the total oxidation and the compound's charge.
                 delta = charge - total_oxidation
-
-                # Adjust the oxidation state of the variable element by distributing the delta
-                # across its count in the compound. Use Rational to avoid floating-point inaccuracies.
+                # Adjust the oxidation state of the variable element to balance the charge.
+                # Use Rational to handle fractional adjustments precisely.
                 oxidation_states[variable_element] += Rational(delta, elements_dict[variable_element])
             else:
-                # If no variable element is found, raise an error because the oxidation states
-                # cannot be adjusted to balance the charge.
+                # If no variable element is found, raise an error.
                 raise ValueError(
                     f"Could not determine oxidation states for compound with elements {elements_dict} and charge {charge}"
                 )
 
-        # Return the computed oxidation states.
         return oxidation_states
 
     def parse_compound(self, compound):
