@@ -149,7 +149,7 @@ class EquationBalancer:
             a, b = b, a % b
         return a
 
-    def compute_oxidation_states(self, elements_dict, charge):
+    def compute_oxidation_statdes(self, elements_dict, charge):
         """
         Compute the oxidation states of elements in a compound based on its composition and charge.
 
@@ -679,3 +679,61 @@ class EquationBalancer:
         return balanced
 
 
+
+
+    def is_acid_or_base(self, compound):
+        """
+        Determines if a compound is an acid, base, or neutral.
+        Handles common acids, bases, and edge cases.
+        """
+        elements_dict, charge = self.parse_compound(compound)
+
+        # Check for common acid patterns
+        if self._is_acid(compound, elements_dict, charge):
+            return "Acid"
+
+        # Check for common base patterns
+        if self._is_base(compound, elements_dict, charge):
+            return "Base"
+
+        # If neither acid nor base, return neutral
+        return "Neutral"
+
+    def _is_acid(self, compound, elements_dict, charge):
+        """
+        Checks if the compound is an acid.
+        """
+        # Acids typically start with H (e.g., HCl, H2SO4)
+        if 'H' in elements_dict and elements_dict['H'] > 0 and charge == 0:
+            return True
+
+        # Check for organic acids (e.g., CH3COOH)
+        if 'COOH' in compound or 'CO2H' in compound:
+            return True
+
+        # Check for polyatomic ions that are acids (e.g., H3PO4, HNO3)
+        common_acid_polyatomics = ['H3PO4', 'HNO3', 'H2SO4', 'HClO4']
+        if compound in common_acid_polyatomics:
+            return True
+
+        return False
+
+    def _is_base(self, compound, elements_dict, charge):
+        """
+        Checks if the compound is a base.
+        """
+        # Bases typically contain OH (e.g., NaOH, KOH)
+        if 'OH' in compound:
+            return True
+
+        # Check for ammonia and amines (e.g., NH3, CH3NH2)
+        if compound == 'NH3' or 'NH2' in compound:
+            return True
+
+        # Check for polyatomic ions that are bases (e.g., CO3^2-, OH-)
+        common_base_polyatomics = ['CO3', 'OH', 'HCO3']
+        for poly in common_base_polyatomics:
+            if poly in compound:
+                return True
+
+        return False

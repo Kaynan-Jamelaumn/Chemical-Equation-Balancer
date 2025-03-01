@@ -1,6 +1,6 @@
 # EquationBalancer
 
-`EquationBalancer` is a Python class designed to balance chemical equations.
+`EquationBalancer` is a Python class designed to balance chemical equations or detect if it's acid or base.
 
 ---
 
@@ -64,7 +64,17 @@ def print_balanced_equation(equation: str):
 if __name__ == "__main__":
     # Example chemical equation
     equation = "Fe^3+ + SO4^2- -> Fe2(SO4)3"
-    
+
     # Print the balanced equation
     print_balanced_equation(equation)
+
+
+    print(balancer.is_acid_or_base("HCl"))          # Acid
+    print(balancer.is_acid_or_base("H2SO4"))       # Acid
+    print(balancer.is_acid_or_base("CH3COOH"))     # Acid (organic acid)
+    print(balancer.is_acid_or_base("NaOH"))        # Base
+    print(balancer.is_acid_or_base("NH3"))         # Base
+    print(balancer.is_acid_or_base("Na2CO3"))      # Base (contains CO3^2-)
+    print(balancer.is_acid_or_base("NaCl"))        # Neutral
+    print(balancer.is_acid_or_base("H2O"))         # Neutral
 ```
