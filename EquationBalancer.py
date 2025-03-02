@@ -1006,3 +1006,42 @@ class EquationBalancer:
 
         # If none of the above conditions are met, the compound is not a base.
         return False
+    
+
+    def calculate_molar_mass(self, compound):
+        """
+        Calculate the molar mass of a chemical compound.
+
+        Args:
+            compound (str): The chemical formula of the compound (e.g., "H2O", "C6H12O6").
+
+        Returns:
+            float: The molar mass of the compound in grams per mole (g/mol).
+
+        Example:
+            Consider the compound "H2O":
+            - H: 2 atoms * 1.008 g/mol = 2.016 g/mol
+            - O: 1 atom * 15.999 g/mol = 15.999 g/mol
+            - Total molar mass = 2.016 + 15.999 = 18.015 g/mol
+
+            Output: 18.015
+        """
+        # Parse the compound into its constituent elements and their counts.
+        elements_dict, _ = self.parse_compound(compound)
+
+        # Initialize the total molar mass to 0.
+        total_molar_mass = 0.0
+
+        # Iterate over each element in the compound.
+        for element, count in elements_dict.items():
+            # Find the element in the elements_list to get its molar mass.
+            element_data = next((elem for elem in self.elements_list if elem['symbol'] == element), None)
+            if element_data:
+                # Multiply the element's molar mass by its count in the compound.
+                total_molar_mass += element_data['molar_mass'] * count
+            else:
+                # If the element is not found, raise an error.
+                raise ValueError(f"Element '{element}' not found in the elements list.")
+
+        # Return the total molar mass.
+        return total_molar_mass

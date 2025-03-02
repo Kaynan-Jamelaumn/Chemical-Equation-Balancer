@@ -1,6 +1,6 @@
 # EquationBalancer
 
-`EquationBalancer` is a Python class designed to balance chemical equations or detect if it's acid or base.
+`EquationBalancer` is a Python class designed to balance chemical equations, detect if it's acid or base, and calculates molar mass.
 
 ---
 
@@ -77,4 +77,6 @@ if __name__ == "__main__":
     print(balancer.is_acid_or_base("Na2CO3"))      # Base (contains CO3^2-)
     print(balancer.is_acid_or_base("NaCl"))        # Neutral
     print(balancer.is_acid_or_base("H2O"))         # Neutral
-```
+
+
+    print(balancer.calculate_molar_mass("H2O"))  #  18.015 g/mol
